@@ -9,17 +9,13 @@ from selenium import webdriver
 from datetime import datetime
 from bs4 import BeautifulSoup
 
-
 with open("config.json") as config:
     CONFIG = json.load(config)
 
-
 DRIVER = webdriver.Firefox()
-
 
 START_TIME = datetime.now()
 LAST_ADD_ON_CHECK = START_TIME
-
 
 def print_pucauto():
     """Print logo and version number."""
@@ -115,9 +111,13 @@ def send_card(card, add_on=False):
     Returns True if the card was sent, False otherwise.
     """
 
+    if CONFIG["DEBUG"]:
+        print("  DEBUG: skipping send on '{}'".format(card["name"]))
+        return False
+
     # Go to the /trades/sendcard/******* page first to secure the trade
     DRIVER.get(card["href"])
-
+    
     try:
         DRIVER.find_element_by_id("confirm-trade-button")
     except Exception:
@@ -288,7 +288,7 @@ def find_highest_value_bundle(trades):
     """Find the highest value bundle in the trades dictionary.
 
     Args:
-    trades - The result dictionary from build_trades_dict
+    trades - The result dictionary from build_trades_dict, or None.
 
     Returns the highest value bundle, which is a tuple of the (k, v) from
     trades.
