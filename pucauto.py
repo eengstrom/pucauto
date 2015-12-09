@@ -140,6 +140,22 @@ def send_card(card, add_on=False):
 
     return True
 
+def load_unshipped_traders():
+    """Build and return a list of members for which we have unshipped cards.
+    Will be a dictionary from "trader id" : "trader profile name".
+    """
+
+    print("Loading unshipped traders...")
+    DRIVER.get("https://pucatrade.com/trades/active")
+    DRIVER.find_element_by_css_selector("div.dataTables_filter input").send_keys('Unshipped')
+    # Wait a bit for the DOM to update after filtering
+    time.sleep(5)
+    soup = BeautifulSoup(DRIVER.page_source, "html.parser")
+    unshipped = dict()
+    for trader in soup.find_all("a", class_="trader"):
+        unshipped[trader["href"].replace("/profiles/show/", "")] = trader.contents[0].strip()
+    return unshipped
+
 
 def find_and_send_add_ons():
     """Build a list of members that have unshipped cards and then send them any
@@ -364,6 +380,8 @@ if __name__ == "__main__":
     print_pucauto()
     print("Logging in...")
     log_in()
+    unshipped = load_unshipped_traders()
+    print("Loading trades page...")
     goto_trades()
     wait_for_load()
     print("Turning on auto matching...")
