@@ -181,6 +181,8 @@ def load_trade_list(partial=False):
                 lowest_visible_points = -1
             if lowest_visible_points < CONFIG["min_value"]:
                 # Stop loading because there are no more members with points above min_value
+                LOGGER.debug("Curtail loading trades table; lowest: {} <= {} minimum trade.".format(
+                    lowest_visible_points, CONFIG["min_value"]))
                 break
 
         DRIVER.execute_script("window.scrollBy(0, 5000);")
@@ -335,11 +337,12 @@ def find_trades(unshipped):
     LOGGER.debug("Looking for bundles...")
     goto_trades()
     wait_for_load()
-    load_trade_list(len(unshipped) > 0)
+    load_trade_list(len(unshipped) <= 0)
     soup = BeautifulSoup(DRIVER.page_source, "html.parser")
     trades = build_trades_dict(soup, unshipped)
     # Send add-on bundles
     for bundle in find_add_on_bundles(trades, unshipped).iteritems():
+        LOGGER.debug("Add-on bundle found:\n{}".format(pprint.pformat(bundle)))
         complete_trades(bundle, True)
         # remove from the trades dict, so we don't try to send again if it happens to be a high-value bundle.
         trades.pop(bundle[0])
