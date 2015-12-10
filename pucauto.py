@@ -5,13 +5,16 @@ from __future__ import print_function
 import json
 import time
 import six
+import pprint
 from selenium import webdriver
 from datetime import datetime
 from bs4 import BeautifulSoup
+from lib import logger
 
 with open("config.json") as config:
     CONFIG = json.load(config)
 
+LOGGER = logger.get_default_logger(__name__)
 DRIVER = webdriver.Firefox()
 
 START_TIME = datetime.now()
@@ -20,6 +23,7 @@ LAST_UNSHIPPED_CHECK = START_TIME
 def print_pucauto():
     """Print logo and version number."""
 
+    # Using print instead of LOGGER so this doesn't show up in logs
     print("""
      _______  __   __  _______  _______  __   __  _______  _______
     |       ||  | |  ||       ||   _   ||  | |  ||       ||       |
@@ -114,14 +118,14 @@ def send_card(card, add_on=False):
         if not add_on:
             reason = DRIVER.find_element_by_tag_name("h3").text
             # FAILED - indented for readability w.r.t header/footer messages from elsewhere.
-            print("  Failed to send '{}'. Reason: {}".format(card["name"], reason))
+            LOGGER.info("  Failed to send '{}'. Reason: {}".format(card["name"], reason))
         return False
 
     # Then go to the /trades/confirm/******* page to confirm the trade
     DRIVER.get(card["href"].replace("sendcard", "confirm"))
 
     # SUCCESS - indented for readability w.r.t header/footer messages from elsewhere.
-    print("  {} '{}' for {} PucaPoints!".format(["Sent","Added"][add_on], card["name"], card["value"]))
+    LOGGER.info("  {} '{}' for {} PucaPoints!".format(["Sent","Added"][add_on], card["name"], card["value"]))
     return True
 
 def unshipped_reload_due(interval_minutes):
@@ -159,16 +163,18 @@ def load_trade_list(partial=False):
     function, we would only see a portion of the cards available for trade.
 
     Args:
-    partial - Set to True to only load rows above min_value. This increases
-              speed for trades with large trade lists.
+    partial - When True, only loads rows above min_value, thus speeding up
+              this function
     """
 
     old_scroll_y = 0
     while True:
+        LOGGER.debug("Scrolling trades table")
         if partial:
             try:
                 lowest_visible_points = int(
                     DRIVER.find_element_by_css_selector(".cards-show tbody tr:last-of-type td.points").text)
+                LOGGER.debug("Lowest member points visible in trades table: {}".format(lowest_visible_points))
             except:
                 # We reached the bottom
                 lowest_visible_points = -1
@@ -184,6 +190,7 @@ def load_trade_list(partial=False):
             break
         else:
             old_scroll_y = new_scroll_y
+    LOGGER.debug("Finished scrolling trades table")
 
 
 def build_trades_dict(soup, unshipped):
@@ -266,6 +273,8 @@ def find_highest_value_bundle(trades):
 
     highest_value_bundle = max(six.iteritems(trades), key=lambda x: x[1]["value"])
 
+    LOGGER.debug("Highest value bundle:\n{}".format(pprint.pformat(highest_value_bundle)))
+
     if highest_value_bundle[1]["value"] >= CONFIG["min_value"]:
         return highest_value_bundle
     else:
@@ -293,7 +302,7 @@ def complete_trades(bundle, add_on=False):
     member_name = bundle[1]["name"]
     member_points = bundle[1]["points"]
     bundle_value = bundle[1]["value"]
-    print("Found {}{} card(s) worth {} points to trade to {} who has {} points...".format(
+    LOGGER.info("Found {}{} card(s) worth {} points to trade to {} who has {} points...".format(
         len(sorted_cards), [""," additional"][add_on],
         bundle_value, member_name, member_points))
 
@@ -304,7 +313,7 @@ def complete_trades(bundle, add_on=False):
             success_value += card["value"]
             success_count += 1
 
-    print("Successfully {} {} out of {} cards worth {} points!".format(
+    LOGGER.info("Successfully {} {} out of {} cards worth {} points!".format(
         ["sent","added"][add_on], success_count, len(sorted_cards), success_value))
     return success_count
 
@@ -322,11 +331,7 @@ def find_trades(unshipped):
     """The special sauce. Read the docstrings for the individual functions to
     figure out how this works."""
 
-    if CONFIG.get("DEBUG"):
-        print("current unshipped list:")
-        for (id, name) in unshipped.iteritems():
-            print("  {} -> '{}'".format(id,name))
-
+    LOGGER.debug("Looking for bundles...")
     goto_trades()
     wait_for_load()
     load_trade_list(len(unshipped) > 0)
@@ -352,20 +357,20 @@ if __name__ == "__main__":
     unshipped_interval = max(5,CONFIG.get("reload_unshipped_interval_m") or 60)
 
     print_pucauto()
-    print("Logging in...")
+    LOGGER.info("Logging in...")
     log_in()
     unshipped = load_unshipped_traders()
 
     print("Loading trades page...")
     goto_trades()
     wait_for_load()
-    print("Turning on auto match/sorting...")
+    LOGGER.info("Turning on auto match/sorting...")
     turn_on_auto_matching()
     wait_for_load()
     sort_by_member_points()
     wait_for_load()
 
-    print("Finding trades ({} sec interval)...".format(refresh_interval))
+    LOGGER.info("Finding trades ({} sec interval)...".format(refresh_interval))
     while check_runtime():
         # reload unshipped traders periodically
         if unshipped_reload_due(unshipped_interval):
