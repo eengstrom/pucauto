@@ -106,7 +106,7 @@ def send_card(card, add_on=False):
     """
 
     if CONFIG.get("DEBUG"):
-        print("  DEBUG: skipping send on '{}'".format(card["name"]))
+        LOGGER.warn("  DEBUG: skipping send on '{}'".format(card["name"]))
         return False
 
     # Go to the /trades/sendcard/******* page first to secure the trade
@@ -115,16 +115,15 @@ def send_card(card, add_on=False):
     try:
         DRIVER.find_element_by_id("confirm-trade-button")
     except Exception:
-        if not add_on:
-            reason = DRIVER.find_element_by_tag_name("h3").text
-            # FAILED - indented for readability w.r.t header/footer messages from elsewhere.
-            LOGGER.info("  Failed to send '{}'. Reason: {}".format(card["name"], reason))
+        # FAILED - output indented for readability w.r.t header/footer messages from elsewhere.
+        reason = DRIVER.find_element_by_tag_name("h3").text
+        LOGGER.info("  Failed to send '{}'. Reason: {}".format(card["name"], reason))
         return False
 
     # Then go to the /trades/confirm/******* page to confirm the trade
     DRIVER.get(card["href"].replace("sendcard", "confirm"))
 
-    # SUCCESS - indented for readability w.r.t header/footer messages from elsewhere.
+    # SUCCESS - output indented for readability w.r.t header/footer messages from elsewhere.
     LOGGER.info("  {} '{}' for {} PucaPoints!".format(["Sent","Added"][add_on], card["name"], card["value"]))
     return True
 
@@ -143,7 +142,7 @@ def load_unshipped_traders():
 
     global LAST_UNSHIPPED_CHECK
 
-    print("Loading unshipped traders...")
+    LOGGER.info("Loading unshipped traders...")
     DRIVER.get("https://pucatrade.com/trades/active")
     DRIVER.find_element_by_css_selector("div.dataTables_filter input").send_keys('Unshipped')
     # Wait a bit for the DOM to update after filtering
@@ -365,7 +364,7 @@ if __name__ == "__main__":
     log_in()
     unshipped = load_unshipped_traders()
 
-    print("Loading trades page...")
+    LOGGER.info("Loading trades page...")
     goto_trades()
     wait_for_load()
     LOGGER.info("Turning on auto match/sorting...")
