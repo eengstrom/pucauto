@@ -154,6 +154,7 @@ def load_unshipped_traders():
         unshipped[trader["href"].replace("/profiles/show/", "")] = trader.contents[0].strip()
 
     LAST_UNSHIPPED_CHECK = datetime.now()
+    LOGGER.debug("Unshipped Traders List:\n{}".format(pprint.pformat(unshipped)))
     return unshipped
 
 
