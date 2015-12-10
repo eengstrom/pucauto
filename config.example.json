@@ -1,7 +1,9 @@
 {
-    "username": "youremailaddress@gmail.com",
-    "password": "yourpassword",
-    "min_value": 100,
-    "find_add_ons": true,
-    "minutes_between_add_ons_check": 5
+  "DEBUG"                       : true,
+  "username"                    : "youremailaddress@gmail.com",
+  "password"                    : "yourpassword",
+  "min_value"                   : 500,
+  "hours_to_run"                :   2,
+  "reload_trades_interval_s"    :  60,
+  "reload_unshipped_interval_m" :  60
 }

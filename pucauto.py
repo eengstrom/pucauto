@@ -15,7 +15,6 @@ with open("config.json") as config:
 DRIVER = webdriver.Firefox()
 
 START_TIME = datetime.now()
-LAST_ADD_ON_CHECK = START_TIME
 LAST_UNSHIPPED_CHECK = START_TIME
 
 def print_pucauto():
@@ -126,7 +125,10 @@ def send_card(card, add_on=False):
     return True
 
 def unshipped_reload_due(interval_minutes):
-    """Return True if we should reload unshipped traders list."""
+    """Return True if we should reload unshipped traders list.
+    Presumably, we want to do this periodically, especially when we are physically shipping cards.
+    """
+
     global LAST_UNSHIPPED_CHECK
     return (datetime.now() - LAST_UNSHIPPED_CHECK).total_seconds() / 60 >= interval_minutes
 
@@ -149,49 +151,6 @@ def load_unshipped_traders():
 
     LAST_UNSHIPPED_CHECK = datetime.now()
     return unshipped
-
-def find_and_send_add_ons():
-    """Build a list of members that have unshipped cards and then send them any
-    new cards that they may want. Card value is ignored because they are already
-    being shipped to. So it's fine to add any and all cards on.
-    """
-
-    DRIVER.get("https://pucatrade.com/trades/active")
-    DRIVER.find_element_by_css_selector("div.dataTables_filter input").send_keys('Unshipped')
-    # Wait a bit for the DOM to update after filtering
-    time.sleep(5)
-
-    soup = BeautifulSoup(DRIVER.page_source, "html.parser")
-
-    unshipped = set()
-    for a in soup.find_all("a", class_="trader"):
-        unshipped.add(a.get("href"))
-
-    goto_trades()
-    wait_for_load()
-    load_trade_list()
-    soup = BeautifulSoup(DRIVER.page_source, "html.parser")
-
-    # Find all rows containing traders from the unshipped set we found earlier
-    rows = [r.find_parent("tr") for r in soup.find_all("a", href=lambda x: x and x in unshipped)]
-
-    cards = []
-
-    for row in rows:
-        card_name = row.find("a", class_="cl").text
-        card_value = int(row.find("td", class_="value").text)
-        card_href = "https://pucatrade.com" + row.find("a", class_="fancybox-send").get("href")
-        card = {
-            "name": card_name,
-            "value": card_value,
-            "href": card_href
-        }
-        cards.append(card)
-
-    # Sort by highest value to send those cards first
-    sorted_cards = sorted(cards, key=lambda k: k["value"], reverse=True)
-    for card in sorted_cards:
-        send_card(card, True)
 
 
 def load_trade_list(partial=False):
@@ -350,7 +309,7 @@ def complete_trades(bundle, add_on=False):
     return success_count
 
 
-def find_add_ons(trades, unshipped):
+def find_add_on_bundles(trades, unshipped):
     """Return subset of 'trades' for which we are have unshipped cards
     to those traders in the 'unshipped' dictionary.
     """
@@ -374,7 +333,7 @@ def find_trades(unshipped):
     soup = BeautifulSoup(DRIVER.page_source, "html.parser")
     trades = build_trades_dict(soup)
     # Send add-on bundles
-    for bundle in find_add_ons(trades, unshipped).iteritems():
+    for bundle in find_add_on_bundles(trades, unshipped).iteritems():
         complete_trades(bundle, True)
         # remove from the trades dict, so we don't try to send again if it happens to be a high-value bundle.
         trades.pop(bundle[0])
