@@ -16,6 +16,7 @@ DRIVER = webdriver.Firefox()
 
 START_TIME = datetime.now()
 LAST_ADD_ON_CHECK = START_TIME
+LAST_UNSHIPPED_CHECK = START_TIME
 
 def print_pucauto():
     """Print logo and version number."""
@@ -91,16 +92,6 @@ def check_runtime():
         return True
 
 
-def should_check_add_ons():
-    """Return True if we should check for add on trades."""
-
-    minutes_between_add_ons_check = CONFIG.get("minutes_between_add_ons_check")
-    if minutes_between_add_ons_check:
-        return (datetime.now() - LAST_ADD_ON_CHECK).total_seconds() / 60 >= minutes_between_add_ons_check
-    else:
-        return True
-
-
 def send_card(card, add_on=False):
     """Send a card.
 
@@ -132,13 +123,19 @@ def send_card(card, add_on=False):
 
     # SUCCESS - indented for readability w.r.t header/footer messages from elsewhere.
     print("  {} '{}' for {} PucaPoints!".format(["Sent","Added"][add_on], card["name"], card["value"]))
-
     return True
+
+def unshipped_reload_due(interval_minutes):
+    """Return True if we should reload unshipped traders list."""
+    global LAST_UNSHIPPED_CHECK
+    return (datetime.now() - LAST_UNSHIPPED_CHECK).total_seconds() / 60 >= interval_minutes
 
 def load_unshipped_traders():
     """Build and return a list of members for which we have unshipped cards.
     Will be a dictionary from "trader id" : "trader profile name".
     """
+
+    global LAST_UNSHIPPED_CHECK
 
     print("Loading unshipped traders...")
     DRIVER.get("https://pucatrade.com/trades/active")
@@ -149,8 +146,9 @@ def load_unshipped_traders():
     unshipped = dict()
     for trader in soup.find_all("a", class_="trader"):
         unshipped[trader["href"].replace("/profiles/show/", "")] = trader.contents[0].strip()
-    return unshipped
 
+    LAST_UNSHIPPED_CHECK = datetime.now()
+    return unshipped
 
 def find_and_send_add_ons():
     """Build a list of members that have unshipped cards and then send them any
@@ -365,12 +363,6 @@ def find_trades(unshipped):
     """The special sauce. Read the docstrings for the individual functions to
     figure out how this works."""
 
-    global LAST_ADD_ON_CHECK
-
-    if CONFIG.get("find_add_ons") and should_check_add_ons():
-        find_and_send_add_ons()
-        LAST_ADD_ON_CHECK = datetime.now()
-
     if CONFIG.get("DEBUG"):
         print("current unshipped list:")
         for (id, name) in unshipped.iteritems():
@@ -381,27 +373,29 @@ def find_trades(unshipped):
     load_trade_list(True)
     soup = BeautifulSoup(DRIVER.page_source, "html.parser")
     trades = build_trades_dict(soup)
+    # Send add-on bundles
     for bundle in find_add_ons(trades, unshipped).iteritems():
         complete_trades(bundle, True)
+        # remove from the trades dict, so we don't try to send again if it happens to be a high-value bundle.
+        trades.pop(bundle[0])
+    # Send higest value bundle, and track recipient in unshipped
     highest_value_bundle = find_highest_value_bundle(trades)
     if complete_trades(highest_value_bundle) >= 1:
         unshipped[highest_value_bundle[0]] = highest_value_bundle[1]["name"]
-    # Slow down to not hit PucaTrade refresh limit
-    time.sleep(5)
 
 
 if __name__ == "__main__":
     """Start Pucauto."""
 
+    # sleep for refresh interval (seconds); default: 60; min: 5
+    refresh_interval = max(5,CONFIG.get("reload_trades_interval_s") or 60)
+    # interval for reloading unshipped traders (minutes); default: 60; min 5
+    unshipped_interval = max(5,CONFIG.get("reload_unshipped_interval_m") or 60)
+
     print_pucauto()
     print("Logging in...")
     log_in()
     unshipped = load_unshipped_traders()
-
-    # HACK - testing:
-#    unshipped["104354"] = "Mason Millard"
-#    unshipped["94732"] = "mynameiscloud"
-
     print("Loading trades page...")
     goto_trades()
     wait_for_load()
@@ -410,9 +404,17 @@ if __name__ == "__main__":
     wait_for_load()
     sort_by_member_points()
     wait_for_load()
-    print("Finding trades...")
+
+    print("Finding trades ({} sec interval)...".format(refresh_interval))
     while check_runtime():
+        # reload unshipped traders periodically
+        if unshipped_reload_due(unshipped_interval):
+            unshipped = load_unshipped_traders()
+        # find and send trades
         find_trades(unshipped)
+        # sleep for refresh interval (seconds)
+        time.sleep(refresh_interval)
+
     DRIVER.close()
 
     # TODO Need to remove filter on low value traders when add-ons allowed.
