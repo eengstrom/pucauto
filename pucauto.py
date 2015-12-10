@@ -1,4 +1,4 @@
-#!/usr/bin/env python 
+#!/usr/bin/env python
 
 from __future__ import print_function
 
@@ -111,32 +111,27 @@ def send_card(card, add_on=False):
     Returns True if the card was sent, False otherwise.
     """
 
-    if CONFIG["DEBUG"]:
+    if CONFIG.get("DEBUG"):
         print("  DEBUG: skipping send on '{}'".format(card["name"]))
         return False
 
     # Go to the /trades/sendcard/******* page first to secure the trade
     DRIVER.get(card["href"])
-    
+
     try:
         DRIVER.find_element_by_id("confirm-trade-button")
     except Exception:
         if not add_on:
             reason = DRIVER.find_element_by_tag_name("h3").text
-            # Indented for readability because this is part of a bundle and there
-            # are header/footer messages
-            print("  Failed to send {}. Reason: {}".format(card["name"], reason))
+            # FAILED - indented for readability w.r.t header/footer messages from elsewhere.
+            print("  Failed to send '{}'. Reason: {}".format(card["name"], reason))
         return False
 
     # Then go to the /trades/confirm/******* page to confirm the trade
     DRIVER.get(card["href"].replace("sendcard", "confirm"))
 
-    if add_on:
-        print("Added on {} to an unshipped trade for {} PucaPoints!".format(card["name"], card["value"]))
-    else:
-        # Indented for readability because this is part of a bundle and there
-        # are header/footer messages
-        print("  Sent {} for {} PucaPoints!".format(card["name"], card["value"]))
+    # SUCCESS - indented for readability w.r.t header/footer messages from elsewhere.
+    print("  {} '{}' for {} PucaPoints!".format(["Sent","Added"][add_on], card["name"], card["value"]))
 
     return True
 
@@ -306,8 +301,7 @@ def find_highest_value_bundle(trades):
     Args:
     trades - The result dictionary from build_trades_dict, or None.
 
-    Returns the highest value bundle, which is a tuple of the (k, v) from
-    trades.
+    Returns the highest value bundle, which is a tuple of the (k, v) from trades.
     """
 
     if len(trades) == 0:
@@ -358,6 +352,15 @@ def complete_trades(bundle, add_on=False):
     return success_count
 
 
+def find_add_ons(trades, unshipped):
+    """Return subset of 'trades' for which we are have unshipped cards
+    to those traders in the 'unshipped' dictionary.
+    """
+
+    # interesting syntactic alternatives: http://stackoverflow.com/questions/2844516
+    return {id: b for id, b in trades.iteritems() if id in unshipped}
+
+
 def find_trades(unshipped):
     """The special sauce. Read the docstrings for the individual functions to
     figure out how this works."""
@@ -368,16 +371,18 @@ def find_trades(unshipped):
         find_and_send_add_ons()
         LAST_ADD_ON_CHECK = datetime.now()
 
-    if CONFIG["DEBUG"]:
+    if CONFIG.get("DEBUG"):
         print("current unshipped list:")
         for (id, name) in unshipped.iteritems():
-            print("  '{}' -> '{}'".format(id,name))
+            print("  {} -> '{}'".format(id,name))
 
     goto_trades()
     wait_for_load()
     load_trade_list(True)
     soup = BeautifulSoup(DRIVER.page_source, "html.parser")
     trades = build_trades_dict(soup)
+    for bundle in find_add_ons(trades, unshipped).iteritems():
+        complete_trades(bundle, True)
     highest_value_bundle = find_highest_value_bundle(trades)
     if complete_trades(highest_value_bundle) >= 1:
         unshipped[highest_value_bundle[0]] = highest_value_bundle[1]["name"]
@@ -392,10 +397,15 @@ if __name__ == "__main__":
     print("Logging in...")
     log_in()
     unshipped = load_unshipped_traders()
+
+    # HACK - testing:
+#    unshipped["104354"] = "Mason Millard"
+#    unshipped["94732"] = "mynameiscloud"
+
     print("Loading trades page...")
     goto_trades()
     wait_for_load()
-    print("Turning on auto matching...")
+    print("Turning on auto match/sorting...")
     turn_on_auto_matching()
     wait_for_load()
     sort_by_member_points()
