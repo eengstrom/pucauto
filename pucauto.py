@@ -321,40 +321,44 @@ def find_highest_value_bundle(trades):
         return None
 
 
-def complete_trades(highest_value_bundle):
+def complete_trades(bundle, add_on=False):
     """Sort the cards by highest value first and then send them all.
 
     Args:
-    highest_value_bundle - The result tuple from find_highest_value_bundle
+    bundle - tuple of trades for a single trader.
+    add_on - are these add-on trades for an unshipped bundle?
+
+    return the number of cards successfully sent
     """
 
-    if not highest_value_bundle:
+    if not bundle:
         # No valid bundle was found, give up and restart the main loop
-        return
+        return 0
 
-    cards = highest_value_bundle[1]["cards"]
+    cards = bundle[1]["cards"]
     # Sort the cards by highest value to make the most valuable trades first.
     sorted_cards = sorted(cards, key=lambda k: k["value"], reverse=True)
 
-    member_name = highest_value_bundle[1]["name"]
-    member_points = highest_value_bundle[1]["points"]
-    bundle_value = highest_value_bundle[1]["value"]
-    print("Found {} card(s) worth {} points to trade to {} who has {} points...".format(
-        len(sorted_cards), bundle_value, member_name, member_points))
+    member_name = bundle[1]["name"]
+    member_points = bundle[1]["points"]
+    bundle_value = bundle[1]["value"]
+    print("Found {}{} card(s) worth {} points to trade to {} who has {} points...".format(
+        len(sorted_cards), [""," additional"][add_on],
+        bundle_value, member_name, member_points))
 
     success_count = 0
     success_value = 0
     for card in sorted_cards:
-        if send_card(card):
+        if send_card(card, add_on):
             success_value += card["value"]
             success_count += 1
 
-    print("Successfully sent {} out of {} cards worth {} points!".format(
-        success_count, len(sorted_cards), success_value))
+    print("Successfully {} {} out of {} cards worth {} points!".format(
+        ["sent","added"][add_on], success_count, len(sorted_cards), success_value))
+    return success_count
 
 
-
-def find_trades():
+def find_trades(unshipped):
     """The special sauce. Read the docstrings for the individual functions to
     figure out how this works."""
 
@@ -363,13 +367,20 @@ def find_trades():
     if CONFIG.get("find_add_ons") and should_check_add_ons():
         find_and_send_add_ons()
         LAST_ADD_ON_CHECK = datetime.now()
+
+    if CONFIG["DEBUG"]:
+        print("current unshipped list:")
+        for (id, name) in unshipped.iteritems():
+            print("  '{}' -> '{}'".format(id,name))
+
     goto_trades()
     wait_for_load()
     load_trade_list(True)
     soup = BeautifulSoup(DRIVER.page_source, "html.parser")
     trades = build_trades_dict(soup)
     highest_value_bundle = find_highest_value_bundle(trades)
-    complete_trades(highest_value_bundle)
+    if complete_trades(highest_value_bundle) >= 1:
+        unshipped[highest_value_bundle[0]] = highest_value_bundle[1]["name"]
     # Slow down to not hit PucaTrade refresh limit
     time.sleep(5)
 
@@ -391,5 +402,7 @@ if __name__ == "__main__":
     wait_for_load()
     print("Finding trades...")
     while check_runtime():
-        find_trades()
+        find_trades(unshipped)
     DRIVER.close()
+
+    # TODO Need to remove filter on low value traders when add-ons allowed.
