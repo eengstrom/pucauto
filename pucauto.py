@@ -186,7 +186,7 @@ def load_trade_list(partial=False):
             old_scroll_y = new_scroll_y
 
 
-def build_trades_dict(soup):
+def build_trades_dict(soup, unshipped):
     """Iterate through the rows in the table on the /trades page and build up a
     dictionary.
 
@@ -222,12 +222,12 @@ def build_trades_dict(soup):
 
     for row in soup.find_all("tr", id=lambda x: x and x.startswith("uc_")):
         member_points = int(row.find("td", class_="points").text)
-        if member_points < CONFIG["min_value"]:
-            # This member doesn't have enough points so move on to next row
-            continue
         member_link = row.find("td", class_="member").find("a", href=lambda x: x and x.startswith("/profiles"))
-        member_name = member_link.text.strip()
         member_id = member_link["href"].replace("/profiles/show/", "")
+        member_name = member_link.text.strip()
+        if (member_id not in unshipped and member_points < CONFIG["min_value"]) :
+            # This member isn't possible add on and doesn't have enough points so move on to next row
+            continue
         card_name = row.find("a", class_="cl").text
         card_value = int(row.find("td", class_="value").text)
         card_href = "https://pucatrade.com" + row.find("a", class_="fancybox-send").get("href")
@@ -329,9 +329,9 @@ def find_trades(unshipped):
 
     goto_trades()
     wait_for_load()
-    load_trade_list(True)
+    load_trade_list(len(unshipped) > 0)
     soup = BeautifulSoup(DRIVER.page_source, "html.parser")
-    trades = build_trades_dict(soup)
+    trades = build_trades_dict(soup, unshipped)
     # Send add-on bundles
     for bundle in find_add_on_bundles(trades, unshipped).iteritems():
         complete_trades(bundle, True)
@@ -355,6 +355,7 @@ if __name__ == "__main__":
     print("Logging in...")
     log_in()
     unshipped = load_unshipped_traders()
+
     print("Loading trades page...")
     goto_trades()
     wait_for_load()
@@ -375,5 +376,3 @@ if __name__ == "__main__":
         time.sleep(refresh_interval)
 
     DRIVER.close()
-
-    # TODO Need to remove filter on low value traders when add-ons allowed.
