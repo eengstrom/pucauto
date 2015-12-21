@@ -1,4 +1,4 @@
-#!/usr/bin/env python 
+#!/usr/bin/env python
 
 from __future__ import print_function
 
@@ -10,17 +10,14 @@ from selenium import webdriver
 from datetime import datetime
 from bs4 import BeautifulSoup
 
-
 with open("config.json") as config:
     CONFIG = json.load(config)
 
-
 DRIVER = webdriver.Firefox()
-
 
 START_TIME = datetime.now()
 LAST_ADD_ON_CHECK = START_TIME
-
+LAST_UNSHIPPED_CHECK = START_TIME
 
 def print_pucauto():
     """Print logo and version number."""
@@ -38,6 +35,10 @@ def print_pucauto():
     @pucautobot on Twitter
 
     """)
+
+def debug(str):
+    if CONFIG.get("DEBUG"):
+        print("DEBUG: ", str)
 
 
 def wait_for_load():
@@ -145,10 +146,22 @@ def send_card(card, add_on=False):
 
     return True
 
+
+def unshipped_reload_due(interval_minutes):
+    """Return True if we should reload unshipped traders list.
+    Presumably, we want to do this periodically, especially when we are physically shipping cards.
+    """
+
+    global LAST_UNSHIPPED_CHECK
+    return (datetime.now() - LAST_UNSHIPPED_CHECK).total_seconds() / 60 >= interval_minutes
+
+
 def load_unshipped_traders():
     """Build and return a list of members for which we have unshipped cards.
     Will be a dictionary from "trader id" : "trader profile name".
     """
+
+    global LAST_UNSHIPPED_CHECK
 
     print("Loading unshipped traders...")
     DRIVER.get("https://pucatrade.com/trades/active")
@@ -160,9 +173,8 @@ def load_unshipped_traders():
     for trader in soup.find_all("a", class_="trader"):
         unshipped[trader["href"].replace("/profiles/show/", "")] = trader.contents[0].strip()
 
-    if CONFIG.get("DEBUG"):
-        print("Unshipped Traders List:\n{}".format(pprint.pformat(unshipped)))
-
+    debug("Unshipped Traders List:\n{}".format(pprint.pformat(unshipped)))
+    LAST_UNSHIPPED_CHECK = datetime.now()
     return unshipped
 
 
@@ -386,14 +398,20 @@ def find_trades(unshipped):
     highest_value_bundle = find_highest_value_bundle(trades)
     if complete_trades(highest_value_bundle) >= 1:
         unshipped[highest_value_bundle[0]] = highest_value_bundle[1]["name"]
-    # Slow down to not hit PucaTrade refresh limit
-    time.sleep(5)
 
 
 if __name__ == "__main__":
     """Start Pucauto."""
 
     print_pucauto()
+
+    # sleep for refresh interval (seconds); default: 60; min: 5
+    refresh_interval = max(5,CONFIG.get("reload_trades_interval_s") or 60)
+    # interval for reloading unshipped traders (minutes); default: 60; min 5
+    unshipped_interval = max(5,CONFIG.get("reload_unshipped_interval_m") or 60)
+    # interval for chekcing for add-on trades (minutes); default: 20; min 5
+    addon_check_interval = max(5,CONFIG.get("minutes_between_add_ons_check") or 20)
+
     print("Logging in...")
     log_in()
     unshipped = load_unshipped_traders()
@@ -414,9 +432,16 @@ if __name__ == "__main__":
     wait_for_load()
     sort_by_member_points()
     wait_for_load()
-    print("Finding trades...")
+    print("Finding trades ({} sec interval)...".format(refresh_interval))
     while check_runtime():
+        # reload unshipped traders periodically
+        if unshipped_reload_due(unshipped_interval):
+            unshipped = load_unshipped_traders()
+        # find and send trades
         find_trades(unshipped)
+        # sleep for refresh interval (seconds)
+        time.sleep(refresh_interval)
+
     DRIVER.close()
 
     # TODO Need to remove filter on low value traders when add-ons allowed.

@@ -7,6 +7,10 @@
   "password"                      : "yourpassword",
   # Minimum value of a bundle of cards before PucAuto will auto-ship
   "min_value"                     : 500,
+  # Interval between reload/rescan for trades (seconds)
+  "reload_trades_interval_s"      : 60,
+  # Interval between reloading unshipped traders list (minutes)
+  "reload_unshipped_interval_m"   : 60,
   # Look for add ons periodically.
   # - note that the minimum value has no affect for add-ons.
   "find_add_ons"                  : true,
