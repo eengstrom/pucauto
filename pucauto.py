@@ -159,6 +159,10 @@ def load_unshipped_traders():
     unshipped = dict()
     for trader in soup.find_all("a", class_="trader"):
         unshipped[trader["href"].replace("/profiles/show/", "")] = trader.contents[0].strip()
+
+    if CONFIG.get("DEBUG"):
+        print("Unshipped Traders List:\n{}".format(pprint.pformat(unshipped)))
+
     return unshipped
 
 
@@ -311,10 +315,10 @@ def find_highest_value_bundle(trades):
     """Find the highest value bundle in the trades dictionary.
 
     Args:
-    trades - The result dictionary from build_trades_dict
+    trades - The result dictionary from build_trades_dict.
 
     Returns the highest value bundle, which is a tuple of the (k, v) from
-    trades.
+    trades, or None.
     """
 
     if len(trades) == 0:
@@ -374,12 +378,6 @@ def find_trades(unshipped):
     if CONFIG.get("find_add_ons") and should_check_add_ons():
         find_and_send_add_ons()
         LAST_ADD_ON_CHECK = datetime.now()
-
-    if CONFIG["DEBUG"]:
-        print("current unshipped list:")
-        for (id, name) in unshipped.iteritems():
-            print("  '{}' -> '{}'".format(id,name))
-
     goto_trades()
     wait_for_load()
     load_trade_list(True)
