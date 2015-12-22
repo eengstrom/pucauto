@@ -127,22 +127,16 @@ def send_card(card, add_on=False):
     try:
         DRIVER.find_element_by_id("confirm-trade-button")
     except Exception:
-        if not add_on:
-            reason = DRIVER.find_element_by_tag_name("h3").text
-            # Indented for readability because this is part of a bundle and there
-            # are header/footer messages
-            print("  Failed to send {}. Reason: {}".format(card["name"], reason))
+        # FAILED - output indented for readability w.r.t header/footer messages from elsewhere.
+        reason = DRIVER.find_element_by_tag_name("h3").text
+        print("  Failed to send '{}'. Reason: {}".format(card["name"], reason))
         return False
 
     # Then go to the /trades/confirm/******* page to confirm the trade
     DRIVER.get(card["href"].replace("sendcard", "confirm"))
 
-    if add_on:
-        print("Added on {} to an unshipped trade for {} PucaPoints!".format(card["name"], card["value"]))
-    else:
-        # Indented for readability because this is part of a bundle and there
-        # are header/footer messages
-        print("  Sent {} for {} PucaPoints!".format(card["name"], card["value"]))
+    # SUCCESS - output indented for readability w.r.t header/footer messages from elsewhere.
+    print("  {} '{}' for {} PucaPoints!".format(["Sent","Added"][add_on], card["name"], card["value"]))
 
     return True
 
@@ -236,15 +230,19 @@ def load_trade_list(partial=False):
 
     old_scroll_y = 0
     while True:
+        debug("Scrolling trades table")
         if partial:
             try:
                 lowest_visible_points = int(
                     DRIVER.find_element_by_css_selector(".cards-show tbody tr:last-of-type td.points").text)
+                debug("Lowest member points visible in trades table: {}".format(lowest_visible_points))
             except:
                 # We reached the bottom
                 lowest_visible_points = -1
             if lowest_visible_points < CONFIG["min_value"]:
                 # Stop loading because there are no more members with points above min_value
+                debug("Curtail loading trades table; lowest: {} <= {} minimum trade.".format(
+                    lowest_visible_points, CONFIG["min_value"]))
                 break
 
         DRIVER.execute_script("window.scrollBy(0, 5000);")
@@ -255,6 +253,7 @@ def load_trade_list(partial=False):
             break
         else:
             old_scroll_y = new_scroll_y
+    debug("Finished scrolling trades table")
 
 
 def build_trades_dict(soup):
@@ -337,6 +336,7 @@ def find_highest_value_bundle(trades):
         return None
 
     highest_value_bundle = max(six.iteritems(trades), key=lambda x: x[1]["value"])
+    #debug("Highest value bundle:\n{}".format(pprint.pformat(highest_value_bundle)))
 
     if highest_value_bundle[1]["value"] >= CONFIG["min_value"]:
         return highest_value_bundle
