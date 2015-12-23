@@ -383,23 +383,40 @@ def complete_trades(bundle, add_on=False):
     return success_count
 
 
+def find_add_on_bundles(trades, unshipped):
+    """Return subset of 'trades' for which we are have unshipped cards
+    to those traders in the 'unshipped' dictionary.
+    """
+
+    # interesting syntactic alternatives: http://stackoverflow.com/questions/2844516
+    return {id: b for id, b in trades.iteritems() if id in unshipped}
+
+
 def find_trades(unshipped):
     """The special sauce. Read the docstrings for the individual functions to
     figure out how this works."""
 
-    global LAST_ADD_ON_CHECK
-
-    if CONFIG.get("find_add_ons") and should_check_add_ons():
-        find_and_send_add_ons()
-        LAST_ADD_ON_CHECK = datetime.now()
+#    global LAST_ADD_ON_CHECK
+#
+#    if CONFIG.get("find_add_ons") and should_check_add_ons():
+#        find_and_send_add_ons()
+#        LAST_ADD_ON_CHECK = datetime.now()
+    debug("Looking for bundles...")
     goto_trades()
     wait_for_load()
-    load_trade_list(True)
+    load_trade_list(len(unshipped) <= 0)
     soup = BeautifulSoup(DRIVER.page_source, "html.parser")
     trades = build_trades_dict(soup, unshipped)
+    # Send higest value bundle, and track recipient in unshipped
     highest_value_bundle = find_highest_value_bundle(trades)
     if complete_trades(highest_value_bundle) >= 1:
         unshipped[highest_value_bundle[0]] = highest_value_bundle[1]["name"]
+        # remove from the trades dict, if it happens to be an add-on trade too
+        trades.pop(highest_value_bundle[0]
+    # Send add-on bundles
+    for bundle in find_add_on_bundles(trades, unshipped).iteritems():
+        debug("Add-on bundle found:\n{}".format(pprint.pformat(bundle)))
+        complete_trades(bundle, True)
 
 
 if __name__ == "__main__":
