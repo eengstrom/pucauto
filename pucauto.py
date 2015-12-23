@@ -256,7 +256,7 @@ def load_trade_list(partial=False):
     debug("Finished scrolling trades table")
 
 
-def build_trades_dict(soup):
+def build_trades_dict(soup, unshipped):
     """Iterate through the rows in the table on the /trades page and build up a
     dictionary.
 
@@ -292,12 +292,12 @@ def build_trades_dict(soup):
 
     for row in soup.find_all("tr", id=lambda x: x and x.startswith("uc_")):
         member_points = int(row.find("td", class_="points").text)
-        if member_points < CONFIG["min_value"]:
-            # This member doesn't have enough points so move on to next row
-            continue
         member_link = row.find("td", class_="member").find("a", href=lambda x: x and x.startswith("/profiles"))
-        member_name = member_link.text.strip()
         member_id = member_link["href"].replace("/profiles/show/", "")
+        member_name = member_link.text.strip()
+        if (member_id not in unshipped and member_points < CONFIG["min_value"]) :
+            # This member isn't possible add on and doesn't have enough points so move on to next row
+            continue
         card_name = row.find("a", class_="cl").text
         card_value = int(row.find("td", class_="value").text)
         card_href = "https://pucatrade.com" + row.find("a", class_="fancybox-send").get("href")
@@ -306,6 +306,8 @@ def build_trades_dict(soup):
             "value": card_value,
             "href": card_href
         }
+        if member_id in unshipped:
+            debug("found add-on card for '{}':\n{}".format(member_name,pprint.pformat(card)))
         if trades.get(member_id):
             # Seen this member before in another row so just add another card
             trades[member_id]["cards"].append(card)
@@ -394,7 +396,7 @@ def find_trades(unshipped):
     wait_for_load()
     load_trade_list(True)
     soup = BeautifulSoup(DRIVER.page_source, "html.parser")
-    trades = build_trades_dict(soup)
+    trades = build_trades_dict(soup, unshipped)
     highest_value_bundle = find_highest_value_bundle(trades)
     if complete_trades(highest_value_bundle) >= 1:
         unshipped[highest_value_bundle[0]] = highest_value_bundle[1]["name"]
@@ -415,6 +417,7 @@ if __name__ == "__main__":
     print("Logging in...")
     log_in()
     unshipped = load_unshipped_traders()
+
     print("Loading trades page...")
     goto_trades()
     wait_for_load()
