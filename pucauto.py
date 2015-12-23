@@ -97,14 +97,14 @@ def check_runtime():
         return True
 
 
-def should_check_add_ons():
-    """Return True if we should check for add on trades."""
+def full_addon_check_due(interval_minutes):
+    """Return True if we should do a FULL check for add on trades."""
 
-    minutes_between_add_ons_check = CONFIG.get("minutes_between_add_ons_check")
-    if minutes_between_add_ons_check:
-        return (datetime.now() - LAST_ADD_ON_CHECK).total_seconds() / 60 >= minutes_between_add_ons_check
+    global LAST_ADD_ON_CHECK
+    if CONFIG.get("find_add_ons"):
+        return (datetime.now() - LAST_ADD_ON_CHECK).total_seconds() / 60 >= interval_minutes
     else:
-        return True
+        return False
 
 
 def send_card(card, add_on=False):
@@ -218,7 +218,7 @@ def find_and_send_add_ons():
         send_card(card, True)
 
 
-def load_trade_list(partial=False):
+def load_trade_list(partial=True):
     """Scroll to the bottom of the page until we can't scroll any further.
     PucaTrade's /trades page implements an infinite scroll table. Without this
     function, we would only see a portion of the cards available for trade.
@@ -392,19 +392,18 @@ def find_add_on_bundles(trades, unshipped):
     return {id: b for id, b in trades.iteritems() if id in unshipped}
 
 
-def find_trades(unshipped):
+def find_trades(unshipped, full_addon_check=False):
     """The special sauce. Read the docstrings for the individual functions to
     figure out how this works."""
 
-#    global LAST_ADD_ON_CHECK
-#
-#    if CONFIG.get("find_add_ons") and should_check_add_ons():
-#        find_and_send_add_ons()
-#        LAST_ADD_ON_CHECK = datetime.now()
     debug("Looking for bundles...")
     goto_trades()
     wait_for_load()
-    load_trade_list(len(unshipped) <= 0)
+    load_trade_list(not (full_addon_check and len(unshipped) > 0))
+    if full_addon_check and len(unshipped) > 0:
+        debug("looked for add ons - now done")
+        global LAST_ADD_ON_CHECK
+        LAST_ADD_ON_CHECK = datetime.now()
     soup = BeautifulSoup(DRIVER.page_source, "html.parser")
     trades = build_trades_dict(soup, unshipped)
     # Send higest value bundle, and track recipient in unshipped
@@ -412,8 +411,8 @@ def find_trades(unshipped):
     if complete_trades(highest_value_bundle) >= 1:
         unshipped[highest_value_bundle[0]] = highest_value_bundle[1]["name"]
         # remove from the trades dict, if it happens to be an add-on trade too
-        trades.pop(highest_value_bundle[0]
-    # Send add-on bundles
+        trades.pop(highest_value_bundle[0])
+    # Send add-on bundles; this always happens, even if full_addon_check is false.
     for bundle in find_add_on_bundles(trades, unshipped).iteritems():
         debug("Add-on bundle found:\n{}".format(pprint.pformat(bundle)))
         complete_trades(bundle, True)
@@ -457,8 +456,8 @@ if __name__ == "__main__":
         # reload unshipped traders periodically
         if unshipped_reload_due(unshipped_interval):
             unshipped = load_unshipped_traders()
-        # find and send trades
-        find_trades(unshipped)
+        # find and send trades, and perhaps add-ons
+        find_trades(unshipped, full_addon_check_due(addon_check_interval))
         # sleep for refresh interval (seconds)
         time.sleep(refresh_interval)
 
