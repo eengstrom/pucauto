@@ -427,8 +427,8 @@ if __name__ == "__main__":
     refresh_interval = max(5,CONFIG.get("reload_trades_interval_s") or 60)
     # interval for reloading unshipped traders (minutes); default: 60; min 5
     unshipped_interval = max(5,CONFIG.get("reload_unshipped_interval_m") or 60)
-    # interval for chekcing for add-on trades (minutes); default: 20; min 5
-    addon_check_interval = max(5,CONFIG.get("minutes_between_add_ons_check") or 20)
+    # interval for chekcing for add-on trades (minutes); default: 20; min 0
+    addon_check_interval = max(0.1,CONFIG.get("minutes_between_add_ons_check") or 20)
 
     print("Logging in...")
     log_in()
