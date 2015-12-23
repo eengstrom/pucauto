@@ -1,21 +1,11 @@
-# Example JSON file - NOTE - you must remove all "# comment" lines.
 {
-  # Set DEBUG to true to never actually ship any cards"
   "DEBUG"                         : true,
-  # Your PucaTrade username and password
   "username"                      : "youremailaddress@gmail.com",
   "password"                      : "yourpassword",
-  # Minimum value of a bundle of cards before PucAuto will auto-ship
   "min_value"                     : 500,
-  # Interval between reload/rescan for trades (seconds)
   "reload_trades_interval_s"      : 60,
-  # Interval between reloading unshipped traders list (minutes)
   "reload_unshipped_interval_m"   : 60,
-  # Look for add ons periodically.
-  # - note that the minimum value has no affect for add-ons.
   "find_add_ons"                  : true,
-  # Minutes between add-on trade checks.
   "minutes_between_add_ons_check" : 5,
-  # How long Pucauto will run before auto-terminating
   "hours_to_run"                  : 2
 }
