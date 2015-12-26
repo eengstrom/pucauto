@@ -165,57 +165,12 @@ def load_unshipped_traders():
     soup = BeautifulSoup(DRIVER.page_source, "html.parser")
     unshipped = dict()
     for trader in soup.find_all("a", class_="trader"):
+        debug(pprint.pformat(trader.contents));
         unshipped[trader["href"].replace("/profiles/show/", "")] = trader.contents[0].strip()
 
     debug("Unshipped Traders List:\n{}".format(pprint.pformat(unshipped)))
     LAST_UNSHIPPED_CHECK = datetime.now()
     return unshipped
-
-
-def find_and_send_add_ons():
-    """Build a list of members that have unshipped cards and then send them any
-    new cards that they may want. Card value is ignored because they are already
-    being shipped to. So it's fine to add any and all cards on.
-    """
-
-    DRIVER.get("https://pucatrade.com/trades/active")
-    DRIVER.find_element_by_css_selector("div.dataTables_filter input").send_keys('Unshipped')
-    # Wait a bit for the DOM to update after filtering
-    time.sleep(5)
-
-    soup = BeautifulSoup(DRIVER.page_source, "html.parser")
-
-    unshipped = set()
-    for a in soup.find_all("a", class_="trader"):
-        unshipped.add(a.get("href"))
-
-    goto_trades()
-    wait_for_load()
-    load_trade_list()
-    soup = BeautifulSoup(DRIVER.page_source, "html.parser")
-
-    # Find all rows containing traders from the unshipped set we found earlier
-    rows = [r.find_parent("tr") for r in soup.find_all("a", href=lambda x: x and x in unshipped)]
-
-    cards = []
-
-    for row in rows:
-        card_name = row.find("a", class_="cl").text
-        card_value = int(row.find("td", class_="value").text)
-        card_href = "https://pucatrade.com" + row.find("a", class_="fancybox-send").get("href")
-        card = {
-            "name": card_name,
-            "value": card_value,
-            "href": card_href
-        }
-        cards.append(card)
-
-    # Sort by highest value to send those cards first
-    sorted_cards = sorted(cards, key=lambda k: k["value"], reverse=True)
-
-
-    for card in sorted_cards:
-        send_card(card, True)
 
 
 def load_trade_list(partial=True):
@@ -401,7 +356,7 @@ def find_trades(unshipped, full_addon_check=False):
     wait_for_load()
     load_trade_list(not (full_addon_check and len(unshipped) > 0))
     if full_addon_check and len(unshipped) > 0:
-        debug("looked for add ons - now done")
+        debug("Completed FULL serach for add ons; updating timer...")
         global LAST_ADD_ON_CHECK
         LAST_ADD_ON_CHECK = datetime.now()
     soup = BeautifulSoup(DRIVER.page_source, "html.parser")
@@ -463,4 +418,3 @@ if __name__ == "__main__":
 
     DRIVER.close()
 
-    # TODO Need to remove filter on low value traders when add-ons allowed.
