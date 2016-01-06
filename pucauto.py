@@ -284,7 +284,8 @@ def build_trades_dict(soup, unshipped):
 
 
 def find_highest_value_bundle(trades):
-    """Find the highest value bundle in the trades dictionary.
+    """Find the highest value bundle in the trades dictionary
+    with a trade total greater than our minimum threshold.
 
     Args:
     trades - The result dictionary from build_trades_dict.
@@ -367,9 +368,10 @@ def find_trades(unshipped, full_addon_check=False):
     trades = build_trades_dict(soup, unshipped)
     # Send higest value bundle, and track recipient in unshipped
     highest_value_bundle = find_highest_value_bundle(trades)
-    if complete_trades(highest_value_bundle) >= 1:
-        unshipped[highest_value_bundle[0]] = highest_value_bundle[1]["name"]
-        # remove from the trades dict, if it happens to be an add-on trade too
+    if highest_value_bundle:
+        if complete_trades(highest_value_bundle, highest_value_bundle[0] in unshipped) >= 1:
+            unshipped[highest_value_bundle[0]] = highest_value_bundle[1]["name"]
+        # remove from the trades dictionary regardless - we've already tried.
         trades.pop(highest_value_bundle[0])
     # Send add-on bundles; this always happens, even if full_addon_check is false.
     for bundle in find_add_on_bundles(trades, unshipped).iteritems():
