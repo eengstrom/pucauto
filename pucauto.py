@@ -168,7 +168,11 @@ def load_unshipped_traders():
         debug(pprint.pformat(trader.contents));
         unshipped[trader["href"].replace("/profiles/show/", "")] = trader.contents[0].strip()
 
-    debug("Unshipped Traders List:\n{}".format(pprint.pformat(unshipped)))
+    #debug("Unshipped Traders List:\n{}".format(pprint.pformat(unshipped)))
+    if unshipped:
+        print("Unshipped Traders List:\n - {}"
+              .format("\n - ".join( sorted( map(lambda (k,v): v+" (id: "+k+")", unshipped.iteritems()) ) )))
+
     LAST_UNSHIPPED_CHECK = datetime.now()
     return unshipped
 
