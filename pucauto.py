@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+!/usr/bin/env python
 
 from __future__ import print_function
 
@@ -30,7 +30,7 @@ def print_pucauto():
     |    ___||       ||      _||       ||       |  |   |  |  |_|  |
     |   |    |       ||     |_ |   _   ||       |  |   |  |       |
     |___|    |_______||_______||__| |__||_______|  |___|  |_______|
-    pucauto.com                                              v0.4.3
+    pucauto.com                                              v0.4.4
     github.com/tomreece/pucauto
     @pucautobot on Twitter
 
@@ -117,8 +117,8 @@ def send_card(card, add_on=False):
     Returns True if the card was sent, False otherwise.
     """
 
-    if CONFIG.get("DEBUG"):
-        print("  DEBUG: skipping send on '{}'".format(card["name"]))
+    if CONFIG.get("debug"):
+        print(u"  DEBUG: Skipping send of '{}'".format(card["name"]))
         return False
 
     # Go to the /trades/sendcard/******* page first to secure the trade
@@ -129,14 +129,14 @@ def send_card(card, add_on=False):
     except Exception:
         # FAILED - output indented for readability w.r.t header/footer messages from elsewhere.
         reason = DRIVER.find_element_by_tag_name("h3").text
-        print("  Failed to send '{}'. Reason: {}".format(card["name"], reason))
+        print(u"  Failed to send '{}'. Reason: {}".format(card["name"], reason))
         return False
 
     # Then go to the /trades/confirm/******* page to confirm the trade
     DRIVER.get(card["href"].replace("sendcard", "confirm"))
 
     # SUCCESS - output indented for readability w.r.t header/footer messages from elsewhere.
-    print("  {} '{}' for {} PucaPoints!".format(["Sent","Added"][add_on], card["name"], card["value"]))
+    print(u"  {} '{}' for {} PucaPoints!".format(["Sent","Added"][add_on], card["name"], card["value"]))
 
     return True
 
@@ -168,9 +168,9 @@ def load_unshipped_traders():
         debug(pprint.pformat(trader.contents));
         unshipped[trader["href"].replace("/profiles/show/", "")] = trader.contents[0].strip()
 
-    #debug("Unshipped Traders List:\n{}".format(pprint.pformat(unshipped)))
+    #debug(u"Unshipped Traders List:\n{}".format(pprint.pformat(unshipped)))
     if unshipped:
-        print("Unshipped Traders List:\n - {}"
+        print(u"Unshipped Traders List:\n - {}"
               .format("\n - ".join( sorted( map(lambda (k,v): v+" (id: "+k+")", unshipped.iteritems()) ) )))
 
     LAST_UNSHIPPED_CHECK = datetime.now()
@@ -266,7 +266,7 @@ def build_trades_dict(soup, unshipped):
             "href": card_href
         }
         if member_id in unshipped:
-            debug("found add-on card for '{}':\n{}".format(member_name,pprint.pformat(card)))
+            debug(u"found add-on card for '{}':\n{}".format(member_name,pprint.pformat(card)))
         if trades.get(member_id):
             # Seen this member before in another row so just add another card
             trades[member_id]["cards"].append(card)
@@ -298,7 +298,7 @@ def find_highest_value_bundle(trades):
         return None
 
     highest_value_bundle = max(six.iteritems(trades), key=lambda x: x[1]["value"])
-    #debug("Highest value bundle:\n{}".format(pprint.pformat(highest_value_bundle)))
+    #debug(u"Highest value bundle:\n{}".format(pprint.pformat(highest_value_bundle)))
 
     if highest_value_bundle[1]["value"] >= CONFIG["min_value"]:
         return highest_value_bundle
@@ -327,7 +327,7 @@ def complete_trades(bundle, add_on=False):
     member_name = bundle[1]["name"]
     member_points = bundle[1]["points"]
     bundle_value = bundle[1]["value"]
-    print("Found {}{} card(s) worth {} points to trade to {} who has {} points...".format(
+    print(u"Found {}{} card(s) worth {} points to trade to {} who has {} points...".format(
         len(sorted_cards), [""," additional"][add_on],
         bundle_value, member_name, member_points))
 
@@ -338,7 +338,7 @@ def complete_trades(bundle, add_on=False):
             success_value += card["value"]
             success_count += 1
 
-    print("Successfully {} {} out of {} cards worth {} points!".format(
+    print(u"Successfully {} {} out of {} cards worth {} points!".format(
         ["sent","added"][add_on], success_count, len(sorted_cards), success_value))
     return success_count
 
@@ -375,7 +375,7 @@ def find_trades(unshipped, full_addon_check=False):
         trades.pop(highest_value_bundle[0])
     # Send add-on bundles; this always happens, even if full_addon_check is false.
     for bundle in find_add_on_bundles(trades, unshipped).iteritems():
-        debug("Add-on bundle found:\n{}".format(pprint.pformat(bundle)))
+        debug(u"Add-on bundle found:\n{}".format(pprint.pformat(bundle)))
         complete_trades(bundle, True)
 
 

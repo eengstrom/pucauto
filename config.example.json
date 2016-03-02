@@ -1,5 +1,5 @@
 {
-  "DEBUG"                         : true,
+  "debug"                         : false,
   "username"                      : "youremailaddress@gmail.com",
   "password"                      : "yourpassword",
   "min_value"                     : 500,

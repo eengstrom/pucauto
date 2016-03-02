@@ -29,7 +29,7 @@ other things like play Fallout 4, or sleep, or while you're at work.
 1. Clone this repository with `git clone https://github.com/tomreece/pucauto.git`
 or download the [latest release](https://github.com/tomreece/pucauto/archive/master.zip).
 1. Open Terminal.
-1. Go to the Pucauto folder you just cloned or downloaded.
+1. Go to the Pucauto folder you just cloned or downloaded with `cd /path/to/pucauto`
 1. Run `sudo pip install -r requirements.txt` and enter your system password
 when prompted.
 
@@ -64,6 +64,8 @@ you can run Pucauto with:
 Pucauto will start running and you'll see it driving Firefox and outputting text
 in the Terminal.
 
+The best way to stop Pucauto is with `CTRL + C` while in the Terminal window.
+
 **IMPORTANT:** You shouldn't click things or do anything in the Firefox window that
 Pucauto opens because Pucauto expects it to be in a very specific state. You can open
 a new Firefox window to surf the interwebs.
@@ -94,20 +96,17 @@ see the code and know roughly what's happening even if you're not a developer.
 
 This is usually happens because some text editors like TextEdit for Mac try to
 insert smart quotes instead of normal quotes. It's a very subtle difference, but
-it breaks JSON files.
-
-Use a plain text editor like Sublime Text 2 or Notepad to edit your config file.
-
-Also triple check for quotes around your username and password, commas at the ends
-of lines, no quotes around numbers or `true` or `false`, and colons separating
-the key and value.
+it breaks JSON files. Use a plain text editor like Sublime Text 2 or Notepad to
+edit your config file. Also triple check for quotes around your username and password,
+commas at the ends of lines, no quotes around numbers or `true` or `false`, and
+colons separating the key and value.
 
 If you still think everything is fine, you can paste your config.json into
 [this site](http://jsonlint.com) and if it's valid JSON you should get a green
 "Valid JSON" message at the bottom after clicking Validate.
 
-If all else fails, delete your config.json and start over with the config.example.json
-in a plain text editor as I suggested earlier.
+On a Mac, you can disable Smart Quote substitution in TextEdit
+like this: [imgur link](http://i.imgur.com/wQJ2aud.png)
 
 ##### How can I contact you?
 
@@ -116,6 +115,18 @@ in a plain text editor as I suggested earlier.
 tomreece@gmail.com
 
 ### Changelog
+
+#### 2016-03-01 [v0.4.4](https://github.com/tomreece/pucauto/archive/v0.4.4.zip)
+* Fixed a bug where usernames or card names with special Unicode characters
+would cause Pucauto to crash.
+* Added a debug mode where Pucauto will run as normal but not actually
+commit to sending any cards. This is useful during development or just to see
+how Pucauto would actually perform for you. Debug mode can be enabled by setting
+`"debug": true` in your config.json file. Thanks to eengstrom for this
+contribution!
+* Modify startup.sh script to `killall firefox` after restarting Pucauto. You
+probably only use this file if you're running Pucauto on a cloud server or
+similar environment. Thanks to Wizard37 for this contribution!
 
 #### 2015-12-12 [v0.4.3](https://github.com/tomreece/pucauto/archive/v0.4.3.zip)
 * Temporary disable `debug.log` due to an issue that affected Windows users. I
