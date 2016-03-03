@@ -38,7 +38,7 @@ def print_pucauto():
     """)
 
 def debug(str):
-    if CONFIG.get("DEBUG"):
+    if CONFIG.get("debug"):
         print("DEBUG: ", str)
 
 
@@ -184,20 +184,20 @@ def load_unshipped_traders():
     return unshipped
 
 
-def load_trade_list(partial=True):
+def load_trade_list(full=False):
     """Scroll to the bottom of the page until we can't scroll any further.
-    PucaTrade's /trades page implements an infinite scroll table. Without this
+    PucaTrade's trades page implements an infinite scroll table. Without this
     function, we would only see a portion of the cards available for trade.
 
     Args:
-    partial - When True, only loads rows above min_value, thus speeding up
-              this function
+      full - When True, load ALL possible trades; otherwise, only load rows
+            above min_value, thus speeding up the search.
     """
 
     old_scroll_y = 0
     while True:
         debug("Scrolling trades table")
-        if partial:
+        if not full:
             try:
                 lowest_visible_points = int(
                     DRIVER.find_element_by_css_selector(".cards-show tbody tr:last-of-type td.points").text)
@@ -366,11 +366,16 @@ def find_trades(unshipped, full_addon_check=False):
     debug("Looking for bundles...")
     goto_trades()
     wait_for_load()
-    load_trade_list(not (full_addon_check and len(unshipped) > 0))
-    if full_addon_check and len(unshipped) > 0:
+
+    # Do a complete check only when we want to and when we have unshipped trades
+    if (full_addon_check and len(unshipped) > 0):
+        load_trade_list(True)
         debug("Completed FULL serach for add ons; updating timer...")
         global LAST_ADD_ON_CHECK
         LAST_ADD_ON_CHECK = datetime.now()
+    else:
+        load_trade_list(False)
+
     soup = BeautifulSoup(DRIVER.page_source, "html.parser")
     trades = build_trades_dict(soup, unshipped)
     # Send higest value bundle, and track recipient in unshipped
