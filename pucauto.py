@@ -159,17 +159,18 @@ def load_unshipped_traders():
     global LAST_UNSHIPPED_CHECK
 
     print("Loading unshipped traders...")
+    unshipped = dict()
+
     DRIVER.get("https://pucatrade.com/trades/active")
     
     try:
         DRIVER.find_element_by_css_selector("div.dataTables_filter input").send_keys('Unshipped')
     except NoSuchElementException:
-        return
+        return unshipped
         
     # Wait a bit for the DOM to update after filtering
     time.sleep(5)
     soup = BeautifulSoup(DRIVER.page_source, "html.parser")
-    unshipped = dict()
     for trader in soup.find_all("a", class_="trader"):
         debug(pprint.pformat(trader.contents));
         unshipped[trader["href"].replace("/profiles/show/", "")] = trader.contents[0].strip()
